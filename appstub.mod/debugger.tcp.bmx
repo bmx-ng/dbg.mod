@@ -1306,27 +1306,8 @@ Function OnDebugUnhandledEx( ex:Object )
 	GCResume	
 End Function
 
-Type TDebugLines
-	Field count:Int
-	Field breakpoints:Int[32]
-	
-	Method Add(line:Int)
-		For Local i:Int = 0 Until count
-			Local n:Int = breakpoints[i]
-			If line = n Then
-				Return
-			End If
-			If line < n Then
-				
-				Return
-			End If
-		Next
-		breakpoints[count] = line
-		count :+ 1
-	End Method
-	
-	Method Remove(line:Int)
-	End Method
+Type TDdebugLine
+	Field line:Int
 End Type
 
 Type TDebugData
