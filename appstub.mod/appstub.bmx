@@ -50,7 +50,7 @@ ModuleInfo "History: Fixed buffer overflow in debug strings"
 ModuleInfo "History: Modified float and double debug output to match compiler precision"
 
 ?Debug
-Import "debugger_mt.stdio.bmx"	'Let's give Otus's new MT friendly debugger a whirl!
+Import "debugger.tcp.bmx"
 ?
 
 ?osx
