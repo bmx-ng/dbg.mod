@@ -1119,8 +1119,9 @@ Function OnDebugEnterStm( stm:Int Ptr )
 						Local file:String = s[2..off]
 						Local line:Int = s[off + 1..s.length - 2].ToInt()
 
-						If bmx_debugger_RemoveBreakpoint(file, line) Then
-							_bpCount :- 1
+						Local count:Int = bmx_debugger_RemoveBreakpoint(file, line)
+						If count Then
+							_bpCount :- count
 						End If
 					End If
 				End If

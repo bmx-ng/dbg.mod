@@ -201,6 +201,15 @@ int bmx_debugger_AddBreakpoint(BBString * filename, int line) {
 int bmx_debugger_RemoveBreakpoint(BBString * filename, int line) {
 	BBSource * src = bbSourceForName(filename);
 	if (src) {
+		if (line == 0) {
+			int count = src->count;
+			for (int i = 0; i < src->count; i++) {
+				src->lines[i] = 0;
+			}
+			src->count = 0;
+			return count;
+		}
+		
 		for (int i = 0; i < src->count; i++) {
 			if (line == src->lines[i]) {
 				for (int n = i; n < src->count; n++) {
