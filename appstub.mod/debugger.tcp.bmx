@@ -5,7 +5,6 @@ Import "debugger.glue.c"
 NoDebug
 
 Import BRL.Socket
-Import BRL.Map
 Import pub.stdc
 
 ?win32
@@ -73,6 +72,7 @@ Extern
 	Function DebugStmFile:String( stm:Int Ptr )="bmx_debugger_DebugStmFile"
 	Function DebugStmLine:Int( stm:Int Ptr )="bmx_debugger_DebugStmLine"
 	Function DebugStmChar:Int( stm:Int Ptr )="bmx_debugger_DebugStmChar"
+	Function DebugBreakOnLine:Int( stm:Int Ptr )="bmx_debugger_DebugBreakOnLine"
 
 	Function bmx_debugger_ref_bbNullObject:Byte Ptr()
 	Function bmx_debugger_ref_bbEmptyArray:Byte Ptr()
@@ -81,6 +81,9 @@ Extern
 	
 	Function bbObjectStructInfo:Byte Ptr(name:Byte Ptr)="BBDebugScope * bbObjectStructInfo( char * )!"
 	Function bmx_debugger_DebugEnumDeclValue:String(decl:Byte Ptr, val:Byte Ptr)
+	
+	Function bmx_debugger_AddBreakpoint:Int(filename:String, line:Int)
+	Function bmx_debugger_RemoveBreakpoint:Int(filename:String, line:Int)
 	
 	Function bmx_snprintf:Int(buf:Byte Ptr, size:Size_T, num:Size_T)
 End Extern
@@ -603,7 +606,6 @@ Function bbThreadGetData:TDbgState( index:Int )="BBObject* bbThreadGetData(int )
 End Extern
 ?
 
-Global _breakpointsMap:TMap = New TMap
 Global _bpCount:Int
 Global _debugPort:Int = 31666
 Global _debugWait:Int = True
@@ -1101,20 +1103,13 @@ Function OnDebugEnterStm( stm:Int Ptr )
 					'   b<FILENAME@line>
 					Local off:Int = s.find("@")
 					If off >= 1 Then
+					
 						Local file:String = s[2..off]
-						Local line:TDdebugLine = New TDdebugLine
-						line.line = s[off + 1..s.length - 2].ToInt()
-						
-						Local list:TDdebugLine[] = TDdebugLine[](_breakpointsMap.ValueForKey(file))
-						
-						If Not list Then
-							list = New TDdebugLine[0]
+						Local line:Int = s[off + 1..s.length - 2].ToInt()
+					
+						If bmx_debugger_AddBreakpoint(file, line) Then
+							_bpCount :+ 1
 						End If
-						
-						list :+ [line]
-						
-						_breakpointsMap.Insert(file, list)
-						_bpCount :+ 1
 					End If
 				Else If s[..1].ToLower() = "z" Then
 					' format 
@@ -1123,34 +1118,9 @@ Function OnDebugEnterStm( stm:Int Ptr )
 					If off >= 1 Then
 						Local file:String = s[2..off]
 						Local line:Int = s[off + 1..s.length - 2].ToInt()
-						
-						Local list:TDdebugLine[] = TDdebugLine[](_breakpointsMap.ValueForKey(file))
-						
-						If list Then
-							For Local i:Int = 0 Until list.length
-								If list[i].line = line Then
-									If list.length = 1
-										_breakpointsMap.Remove(file)
-									Else 
-										If i = 0 Then
-											list = list[i + 1..] 
-										Else If i = list.length - 1 Then
-											list = list[..i] 
-										Else
-											list = list[..i] + list[i + 1..]
-										End If
-										
-										_breakpointsMap.Insert(file, list)
-										
-									End If
-									
-									_bpCount :- 1
 
-									Exit
-
-								End If
-							Next
-
+						If bmx_debugger_RemoveBreakpoint(file, line) Then
+							_bpCount :- 1
 						End If
 					End If
 				End If
@@ -1165,27 +1135,16 @@ Function OnDebugEnterStm( stm:Int Ptr )
 			Else If _bpCount Then
 			
 				' breakpoints have been defined
-				Local file:String = DebugStmFile(stm)
-				
-				Local list:TDdebugLine[] = TDdebugLine[](_breakpointsMap.ValueForKey(file))
-				
-				If list Then
-					Local line:Int = DebugStmLine(stm)
+				If DebugBreakOnLine(stm) Then
+					' enter debugging mode!
+					OnDebugStop()
 					
-					For Local i:Int = 0 Until list.length
-						If list[i].line = line Then
-							' enter debugging mode!
-							OnDebugStop()
-							
-							' done debugging. If we are still in BREAK mode, return to Running mode
-							If dbgState.Mode = MODE_BREAK Then
-								dbgState.Mode = MODE_RUN
-							End If
-							
-							Return
-						End If
-					Next
-				
+					' done debugging. If we are still in BREAK mode, return to Running mode
+					If dbgState.Mode = MODE_BREAK Then
+						dbgState.Mode = MODE_RUN
+					End If
+					
+					Return				
 				End If		
 
 				' carry on as before
@@ -1305,10 +1264,6 @@ Function OnDebugUnhandledEx( ex:Object )
 
 	GCResume	
 End Function
-
-Type TDdebugLine
-	Field line:Int
-End Type
 
 Type TDebugData
 	Field length:Int = 8

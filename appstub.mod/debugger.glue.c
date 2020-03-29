@@ -179,3 +179,52 @@ void * bmx_debugger_ref_brl_blitz_NullFunctionError() {
 int bmx_snprintf(char * txt, size_t size, size_t num) {
 	return snprintf(txt, size, "%7d", num);
 }
+
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+int bmx_debugger_AddBreakpoint(BBString * filename, int line) {
+	BBSource * src = bbSourceForName(filename);
+	if (src) {
+		for (int i = 0; i < src->count; i++) {
+			if (line == src->lines[i]) {
+				return 0;
+			}
+		}
+		src->lines[src->count++] = line;
+		return 1;
+	}
+	
+	return 0;
+}
+
+int bmx_debugger_RemoveBreakpoint(BBString * filename, int line) {
+	BBSource * src = bbSourceForName(filename);
+	if (src) {
+		for (int i = 0; i < src->count; i++) {
+			if (line == src->lines[i]) {
+				for (int n = i; n < src->count; n++) {
+					src->lines[n] = src->lines[n+1];
+				}
+				src->count--;
+				return 1;
+			}
+		}
+	}
+	
+	return 0;
+}
+
+int bmx_debugger_DebugBreakOnLine(struct BBDebugStm * stmt) {
+	BBSource * src = bbSourceForId(stmt->id);
+	int count = src->count;
+	if (count > 0) {
+		for (int i = 0; i < count; i++) {
+			if (stmt->line_num == src->lines[i]) {
+				return 1;
+			}
+		}
+	}
+	
+	return 0;
+}
